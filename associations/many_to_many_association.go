@@ -78,9 +78,18 @@ func (m *manyToManyAssociation) Constraint() (string, []interface{}) {
 	i := reflect.Indirect(m.fieldValue)
 	if i.Kind() == reflect.Slice || i.Kind() == reflect.Array {
 		t := i.Type().Elem()
-		columnFieldID = fmt.Sprintf("%s%s", flect.Underscore(t.Name()), "_id")
+		if t.Kind() == reflect.Ptr {
+			columnFieldID = fmt.Sprintf("%s%s", flect.Underscore(t.Elem().Name()), "_id")
+		} else {
+			columnFieldID = fmt.Sprintf("%s%s", flect.Underscore(t.Name()), "_id")
+		}
 	} else {
-		columnFieldID = fmt.Sprintf("%s%s", flect.Underscore(i.Type().Name()), "_id")
+		t := i.Type()
+		if t.Kind() == reflect.Ptr {
+			columnFieldID = fmt.Sprintf("%s%s", flect.Underscore(t.Elem().Name()), "_id")
+		} else {
+			columnFieldID = fmt.Sprintf("%s%s", flect.Underscore(t.Name()), "_id")
+		}
 	}
 
 	if m.fkID != "" {
@@ -120,13 +129,23 @@ func (m *manyToManyAssociation) Statements() []AssociationStatement {
 	i := reflect.Indirect(m.fieldValue)
 	if i.Kind() == reflect.Slice || i.Kind() == reflect.Array {
 		t := i.Type().Elem()
+		if t.Kind() == reflect.Ptr {
+			t = t.Elem()
+		}
 		columnFieldID = fmt.Sprintf("%s%s", flect.Underscore(t.Name()), "_id")
 	} else {
+		t := i.Type()
+		if t.Kind() == reflect.Ptr {
+			t = t.Elem()
+		}
 		columnFieldID = fmt.Sprintf("%s%s", flect.Underscore(i.Type().Name()), "_id")
 	}
 
 	for i := 0; i < m.fieldValue.Len(); i++ {
 		v := m.fieldValue.Index(i)
+		if v.Kind() == reflect.Ptr {
+			v = v.Elem()
+		}
 		manyIDValue := v.FieldByName("ID").Interface()
 		modelIDValue := m.model.FieldByName("ID").Interface()
 		stm := "INSERT INTO %s (%s,%s,%s,%s) SELECT ?,?,?,? WHERE NOT EXISTS (SELECT * FROM %s WHERE %s = ? AND %s = ?)"
