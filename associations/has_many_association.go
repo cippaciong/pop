@@ -135,7 +135,11 @@ func (a *hasManyAssociation) AfterProcess() AssociationStatement {
 	ids := []interface{}{}
 
 	for i := 0; i < v.Len(); i++ {
-		id := v.Index(i).FieldByName(belongingIDFieldName).Interface()
+		e := v.Index(i)
+		if e.Kind() == reflect.Ptr {
+			e = e.Elem()
+		}
+		id := e.FieldByName(belongingIDFieldName).Interface()
 		if !IsZeroOfUnderlyingType(id) {
 			ids = append(ids, id)
 		}
