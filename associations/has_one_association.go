@@ -2,6 +2,7 @@ package associations
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/gobuffalo/flect"
@@ -36,11 +37,23 @@ func hasOneAssociationBuilder(p associationParams) (Association, error) {
 	if fieldIsNil(ownerID) {
 		skipped = true
 	}
+	log.Println("Owner ID:", ownerID)
 
 	ownerName := p.modelType.Name()
 	fk := defaults.String(p.popTags.Find("fk_id").Value, flect.Underscore(ownerName)+"_id")
 
 	fval := p.modelValue.FieldByName(p.field.Name)
+	//if fval.Kind() == reflect.Ptr {
+	//log.Println("POINTER")
+	//fval = fval.Elem()
+	//}
+	log.Println("Owner name:", ownerName)
+	log.Println("Owned table name:", flect.Pluralize(p.popTags.Find("has_one").Value))
+	log.Println("Field name:", p.field.Name)
+	log.Println("Owner model:", p.model)
+	log.Println("Owned type:", fval.Type())
+	log.Println("Owned model Kind:", fval.Kind())
+	log.Println("Owned model:", fval)
 	return &hasOneAssociation{
 		owner:          p.model,
 		ownedTableName: flect.Pluralize(p.popTags.Find("has_one").Value),
@@ -62,7 +75,10 @@ func (h *hasOneAssociation) Kind() reflect.Kind {
 
 func (h *hasOneAssociation) Interface() interface{} {
 	if h.ownedModel.Kind() == reflect.Ptr {
+		log.Println("Owned Model (Interface):", h.ownedModel)
+		log.Println("Owned Type Elem (Interface):", h.ownedType.Elem())
 		val := reflect.New(h.ownedType.Elem())
+		log.Println("VAL:", val)
 		h.ownedModel.Set(val)
 		return h.ownedModel.Interface()
 	}
@@ -72,17 +88,21 @@ func (h *hasOneAssociation) Interface() interface{} {
 // Constraint returns the content for the WHERE clause, and the args
 // needed to execute it.
 func (h *hasOneAssociation) Constraint() (string, []interface{}) {
+	log.Println("OWNER ID:", h.ownerID)
+	log.Println("FK:", h.fkID)
 	return fmt.Sprintf("%s = ?", h.fkID), []interface{}{h.ownerID}
 }
 
 func (h *hasOneAssociation) AfterSetup() error {
 	om := h.ownedModel
+	log.Println("Owned model (AfterSetup):", om)
 	if fieldIsNil(om) {
 		return nil
 	}
 	ownerID := reflect.Indirect(reflect.ValueOf(h.owner)).FieldByName("ID").Interface()
 	if om.Kind() == reflect.Ptr {
 		om = om.Elem()
+		log.Println("KIND 87:", om.Kind())
 	}
 	fval := om.FieldByName(h.ownerName + "ID")
 	if fval.CanSet() {
@@ -106,6 +126,10 @@ func (h *hasOneAssociation) AfterInterface() interface{} {
 		return nil
 	}
 	if m.Kind() == reflect.Ptr {
+		if IsZeroOfUnderlyingType(m.Interface()) {
+			log.Println("ZEROOOOO")
+			return nil
+		}
 		return m.Interface()
 	}
 	if IsZeroOfUnderlyingType(m.Interface()) {
@@ -120,6 +144,7 @@ func (h *hasOneAssociation) AfterProcess() AssociationStatement {
 	om := h.ownedModel
 	if om.Kind() == reflect.Ptr {
 		om = om.Elem()
+		log.Println("KIND 125:", om.Kind())
 	}
 	// Skip if the related model is not set
 	if IsZeroOfUnderlyingType(om) {
