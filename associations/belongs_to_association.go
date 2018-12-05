@@ -107,10 +107,6 @@ func (b *belongsToAssociation) BeforeInterface() interface{} {
 		return nil
 	}
 
-	if m.Kind() == reflect.Ptr {
-		m = b.ownerModel.Elem()
-	}
-
 	return m.Addr().Interface()
 }
 
